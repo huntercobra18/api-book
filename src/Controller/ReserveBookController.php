@@ -38,12 +38,25 @@ class ReserveBookController
             throw new BadRequestHttpException('User not authenticated.');
         }
 
-        // Find the book by its label
         $bookRepository = $this->entityManager->getRepository(Book::class);
         $book = $bookRepository->findOneBy(['id' => $id]);
 
         if (!$book) {
             throw new NotFoundHttpException('Book not found.');
+        }
+
+        $empruntRepository = $this->entityManager->getRepository(Emprunt::class);
+        $oneWeekAgo = (new \DateTimeImmutable())->modify('-7 days');
+        $recentEmprunts = $empruntRepository->createQueryBuilder('e')
+            ->where('e.emprunteur = :user')
+            ->andWhere('e.date >= :oneWeekAgo')
+            ->setParameter('user', $user)
+            ->setParameter('oneWeekAgo', $oneWeekAgo)
+            ->getQuery()
+            ->getResult();
+
+        if (count($recentEmprunts) >= 2) {
+            throw new BadRequestHttpException('You cannot reserve more than 2 books in the same week.');
         }
 
         $reservation = new Emprunt();
